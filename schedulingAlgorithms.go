@@ -10,6 +10,8 @@ type Process struct {
 	name string
 	arrival int
 	burst int
+	selected int
+	finished int
 }
 
 func main() {
@@ -20,7 +22,7 @@ func main() {
 
     fileName := os.Args[1]
     runTime, algorithm, quantum, processes := getInfo(fileName)
-
+/*
     fmt.Println(runTime)
     fmt.Println(algorithm)
     fmt.Println(quantum)
@@ -28,7 +30,7 @@ func main() {
     for _,process := range processes {
     	fmt.Printf("Name: %3s\nArrival: %3d\nBurst: %3d\n\n", process.name, process.arrival, process.burst)
     }
-
+*/
     if (algorithm == "fcfs") {
     	fcfs(runTime, processes)
     } else if (algorithm == "sjf") {
@@ -61,32 +63,26 @@ func getInfo(fileName string) (int, string, int, []Process) {
     s := bufio.NewScanner(file)
 	s.Split(bufio.ScanWords)
 	
-	numProcesses, err := strconv.Atoi(getValue(s, "processcount"))
-	check(err)
+	numProcesses, _ := strconv.Atoi(getValue(s, "processcount"))
 
-	runTime, err := strconv.Atoi(getValue(s, "runfor"))
-	check(err)
+	runTime, _ := strconv.Atoi(getValue(s, "runfor"))
 
 	algorithm := getValue(s, "use")
 
 	quantum := -1
 
 	if algorithm == "rr" {
-		quantum, err := strconv.Atoi(getValue(s, "quantum"))
-		check(err)
-		fmt.Println(quantum)
+		quantum, _ = strconv.Atoi(getValue(s, "quantum"))
 	}
 
     var processes []Process
 
     for i := 0 ; i < numProcesses ; i++ {
     	name := getValue(s, "name")
-    	arrival, err := strconv.Atoi(getValue(s, "arrival"))
-    	check(err)
-    	burst, err := strconv.Atoi(getValue(s, "burst"))
-    	check(err)
+    	arrival, _ := strconv.Atoi(getValue(s, "arrival"))
+    	burst, _ := strconv.Atoi(getValue(s, "burst"))
 
-    	processes = append(processes, Process{name, arrival, burst})
+    	processes = append(processes, Process{name, arrival, burst, 0, 0})
 
     }
 
@@ -104,26 +100,82 @@ func getValue(s *bufio.Scanner, word string) string {
 }
 
 func fcfs(runTime int, processes []Process) {
-	fmt.Println("fcfs")
+	fmt.Printf("%3d processes\nUsing First-Come First-Served\n", len(processes))
 
-	fmt.Printf("%3d processes\n", len(processes))
+	numProcFinished := 0
 
-	for time := 0 ; time < runTime ; time++ {
-		checkArrival(time, processes)
-
-		fmt.Printf("TIME %3d : \n", time)
+	// bubble sort by arrival time
+	for i := 0 ; i < len(processes) ; i++ {
+		for j := 0 ; j < len(processes) - i - 1 ; j++ {
+			if processes[j].arrival > processes[j+1].arrival {
+				processes[j], processes[j+1] = processes[j+1], processes[j]
+			}
+		}
 	}
 
-	fmt.Printf("Finished at time %3d", runTime)
+	// find selected times
+	for i := 0 ; i < len(processes) - 1  ; i++ {
+		if processes[i].arrival + processes[i].burst <= processes[i+1].arrival + processes[i+1].burst {
+			processes[i+1].selected = processes[i+1].arrival
+		}
+	}
+
+
+	for time := 0 ; time < runTime ; time++ {
+		checkArrival(time, numProcFinished, processes)
+		checkSelected(time, numProcFinished, processes)
+		numProcFinished = checkFinished(time, numProcFinished, processes)
+		time = checkIdle(time, runTime, numProcFinished, processes)
+
+
+	}
+
+	fmt.Printf("Finished at time %3d\n\n", runTime)
+
+    for _, process := range processes {
+		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, process.selected - process.arrival, process.burst - (process.selected - process.arrival))
+	}
 
 }
 
-func checkArrival(time int, processes []Process) {
-	for _,process := range processes {
-		if process.arrival == time {
-			fmt.Printf("TIME %3d : %3s arrived \n", time, process.name)
+func checkArrival(time int, numProcFinished int, processes []Process) {
+	for i := numProcFinished ; i < len(processes) ; i++ {
+		if processes[i].arrival == time {
+			fmt.Printf("TIME %3d : %3s arrived \n", time, processes[i].name)
+
 		}
 	}
+}
+
+
+func checkSelected(time int, numProcFinished int, processes []Process) {
+	if processes[numProcFinished].selected == time {
+		fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[numProcFinished].name, processes[numProcFinished].burst)
+	}
+}
+
+func checkFinished(time int, numProcFinished int, processes []Process) int {
+	if processes[numProcFinished].selected + processes[numProcFinished].burst == time {
+		fmt.Printf("TIME %3d : %3s finished\n", time, processes[numProcFinished].name)
+
+		numProcFinished = numProcFinished + 1
+	}
+
+	return numProcFinished
+}
+
+func checkIdle(time int, runTime int, numProcFinished int, processes []Process) int {
+			
+	if numProcFinished == len(processes) {
+		for time < runTime {
+			fmt.Printf("TIME %3d : Idle\n", time)
+			time++
+		}
+	} else if processes[numProcFinished].arrival > time {
+		fmt.Printf("TIME %3d : Idle\n", time)
+	}
+
+	return time
 }
 
 func sjf(runTime int, processes []Process) {
