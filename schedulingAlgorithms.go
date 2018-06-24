@@ -11,7 +11,6 @@ type Process struct {
 	arrival int
 	burst int
 	selected int
-	finished int
 }
 
 func main() {
@@ -82,7 +81,7 @@ func getInfo(fileName string) (int, string, int, []Process) {
     	arrival, _ := strconv.Atoi(getValue(s, "arrival"))
     	burst, _ := strconv.Atoi(getValue(s, "burst"))
 
-    	processes = append(processes, Process{name, arrival, burst, 0, 0})
+    	processes = append(processes, Process{name, arrival, burst, 0})
 
     }
 
@@ -115,25 +114,33 @@ func fcfs(runTime int, processes []Process) {
 
 	// find selected times
 	for i := 0 ; i < len(processes) - 1  ; i++ {
-		if processes[i].arrival + processes[i].burst <= processes[i+1].arrival + processes[i+1].burst {
+		if processes[i].selected + processes[i].burst <= processes[i+1].arrival {
 			processes[i+1].selected = processes[i+1].arrival
+		} else {
+			processes[i+1].selected = processes[i].selected + processes[i].burst
 		}
 	}
 
-
 	for time := 0 ; time < runTime ; time++ {
 		checkArrival(time, numProcFinished, processes)
-		checkSelected(time, numProcFinished, processes)
 		numProcFinished = checkFinished(time, numProcFinished, processes)
-		time = checkIdle(time, runTime, numProcFinished, processes)
+		if numProcFinished != len(processes) {
+			checkSelected(time, numProcFinished, processes)
+		}
 
+		time = checkIdle(time, runTime, numProcFinished, processes)
 
 	}
 
 	fmt.Printf("Finished at time %3d\n\n", runTime)
 
+	//TODO: sort alphabetically
+
+    // calculate wait and turnaround time
+
     for _, process := range processes {
-		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, process.selected - process.arrival, process.burst - (process.selected - process.arrival))
+    	wait := process.selected - process.arrival
+		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, wait, process.burst + wait)
 	}
 
 }
@@ -146,7 +153,6 @@ func checkArrival(time int, numProcFinished int, processes []Process) {
 		}
 	}
 }
-
 
 func checkSelected(time int, numProcFinished int, processes []Process) {
 	if processes[numProcFinished].selected == time {
