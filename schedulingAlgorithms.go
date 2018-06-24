@@ -12,19 +12,25 @@ func main() {
     	os.Exit(-1)
     }
 
-
     fileName := os.Args[1]
-    s, numProcesses, runTime, algorithm, quantum := getInfo(fileName)
+    s, runTime, algorithm, quantum, processesNames, arrivals, bursts := getInfo(fileName)
 
-
-
-    fmt.Println(numProcesses)
     fmt.Println(runTime)
     fmt.Println(algorithm)
     fmt.Println(quantum)
+    fmt.Println(processesNames)
+	fmt.Println(arrivals)
+	fmt.Println(bursts)
 
     if (algorithm == "fcfs") {
-    	fcfs(s, runTime)
+    	fcfs(s, runTime, processesNames, arrivals, bursts)
+    } else if (algorithm == "sjf") {
+    	sjf(s, runTime, processesNames, arrivals, bursts)
+    } else if (algorithm == "rr") {
+    	rr(s, runTime, quantum, processesNames, arrivals, bursts)
+    }  else {
+    	fmt.Println("Invalid algorithm name give. Accepted algorithms: \nfcfs, sjf, rr")
+    	os.Exit(-1)
     }
 
 	/*
@@ -42,9 +48,7 @@ func check(e error) {
 }
 
 
-func getInfo(fileName string) (*bufio.Scanner, int, int, string, int) {
-
-   
+func getInfo(fileName string) (*bufio.Scanner, int, string, int, []string, []int, []int) {
     file, err := os.Open(fileName)
     check(err)
 
@@ -67,11 +71,19 @@ func getInfo(fileName string) (*bufio.Scanner, int, int, string, int) {
 		fmt.Println(quantum)
 	}
 
-    //processesNames := make([]int, numProcesses)
-    //arrivals := make([]int, numProcesses)
-    //bursts := make([]int, numProcesses)
+    processesNames := make([]string, numProcesses)
+    arrivals := make([]int, numProcesses)
+    bursts := make([]int, numProcesses)
 
-	return s, numProcesses, runTime, algorithm, quantum
+    for i := 0 ; i < numProcesses ; i++ {
+    	processesNames[i] = getValue(s, "name")
+    	arrivals[i], err = strconv.Atoi(getValue(s, "arrival"))
+    	check(err)
+    	bursts[i], err = strconv.Atoi(getValue(s, "burst"))
+    	check(err)
+    }
+
+	return s, runTime, algorithm, quantum, processesNames, arrivals, bursts
 }
 
 func getValue(s *bufio.Scanner, word string) string {
@@ -82,9 +94,16 @@ func getValue(s *bufio.Scanner, word string) string {
 	s.Scan()
 
 	return string(s.Bytes())
-
 }
 
-func fcfs(s *bufio.Scanner, runTime int) {
+func fcfs(s *bufio.Scanner, runTime int, processesNames []string, arrivals []int, bursts []int) {
 	fmt.Println("fcfs")
+}
+
+func sjf(s *bufio.Scanner, runTime int, processesNames []string, arrivals []int, bursts []int) {
+	fmt.Println("sjf")
+}
+
+func rr(s *bufio.Scanner, runTime int, quantum int, processesNames []string, arrivals []int, bursts []int) {
+	fmt.Println("rr")
 }
