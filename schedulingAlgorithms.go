@@ -43,7 +43,6 @@ func check(e error) {
 	}
 }
 
-
 func getInfo(fileName string) (int, string, int, []Process) {
     file, err := os.Open(fileName)
     check(err)
@@ -200,7 +199,7 @@ func sjf(runTime int, processes []Process) {
 			mostRecent = checkSelectedSJF(runTime, time, processes, mostRecent)
 		}
 
-		time = checkIdle(time, runTime, numProcFinished, processes)
+		time = checkIdleSJF(time, runTime, numProcFinished, processes)
 	}
 
 
@@ -211,7 +210,7 @@ func sjf(runTime int, processes []Process) {
     // calculate wait and turnaround time
     for _, process := range processes {
 		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, process.selected - process.arrival, process.finished - process.arrival)
-		//fmt.Println(process)
+		fmt.Println(process)
 	}
 
 }
@@ -235,19 +234,20 @@ func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int
 				if mostRecent != i {
 					mostRecent = i
 
-					// TODO: calculate burst: go through i+1 to end and find next to be executed
 					burst := runTime + 1
 
+					// if a shorter job will arrive before the current process is done, burst time is reduced
 					for j := 0 ; j < i ; j++ {
 						if processes[j].timeBursted < processes[j].burst {
 							if processes[j].arrival < processes[i].burst - processes[i].timeBursted + time {
 								if processes[j].arrival < burst {
-									burst = processes[j].arrival
+									burst = processes[j].arrival - time
 								}
 							}
 						}
 					}
 
+					// current burst will not be interruped and process will finish
 					if burst == runTime + 1 {
 						burst = processes[mostRecent].burst - processes[mostRecent].timeBursted
 					}
@@ -263,6 +263,34 @@ func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int
 	return -1
 }
 
+
+func checkIdleSJF(time int, runTime int, numProcFinished int, processes []Process) int {
+			
+	if numProcFinished == len(processes) {
+		for time < runTime {
+			fmt.Printf("TIME %3d : Idle\n", time)
+			time++
+		}
+
+		return time
+	} 
+
+	idle := true
+
+	for i := 0 ; i < len(processes) ; i++ {
+		if processes[i].arrival <= time {
+			if processes[i].timeBursted <= processes[i].burst {
+				idle = false
+				break
+			}
+		}
+	}
+	if idle {
+		fmt.Printf("TIME %3d : Idle\n", time)
+	}
+
+	return time
+}
 
 func checkFinishedSJF(time int, numProcFinished int, mostRecent int, processes []Process) int{
 	if processes[mostRecent].timeBursted == processes[mostRecent].burst {
