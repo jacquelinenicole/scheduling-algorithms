@@ -10,7 +10,10 @@ type Process struct {
 	name string
 	arrival int
 	burst int
+	timeBursted int
 	selected int
+	finished int
+	previouslySelected bool
 }
 
 func main() {
@@ -21,15 +24,7 @@ func main() {
 
     fileName := os.Args[1]
     runTime, algorithm, quantum, processes := getInfo(fileName)
-/*
-    fmt.Println(runTime)
-    fmt.Println(algorithm)
-    fmt.Println(quantum)
 
-    for _,process := range processes {
-    	fmt.Printf("Name: %3s\nArrival: %3d\nBurst: %3d\n\n", process.name, process.arrival, process.burst)
-    }
-*/
     if (algorithm == "fcfs") {
     	fcfs(runTime, processes)
     } else if (algorithm == "sjf") {
@@ -40,12 +35,6 @@ func main() {
     	fmt.Println("Invalid algorithm name give. Accepted algorithms: \nfcfs, sjf, rr")
     	os.Exit(-1)
     }
-	/*
-	for s.Scan() {
-		word := s.Bytes()
-		fmt.Println(string(word))
-	}
-	*/
 }
 
 func check(e error) {
@@ -81,7 +70,7 @@ func getInfo(fileName string) (int, string, int, []Process) {
     	arrival, _ := strconv.Atoi(getValue(s, "arrival"))
     	burst, _ := strconv.Atoi(getValue(s, "burst"))
 
-    	processes = append(processes, Process{name, arrival, burst, 0})
+    	processes = append(processes, Process{name, arrival, burst, 0, 0, 0, false})
 
     }
 
@@ -123,21 +112,21 @@ func fcfs(runTime int, processes []Process) {
 
 	for time := 0 ; time < runTime ; time++ {
 		checkArrival(time, numProcFinished, processes)
-		numProcFinished = checkFinished(time, numProcFinished, processes)
+		if (checkFinished(time, numProcFinished, processes)) {
+			numProcFinished++
+		}
+
 		if numProcFinished != len(processes) {
 			checkSelected(time, numProcFinished, processes)
 		}
 
 		time = checkIdle(time, runTime, numProcFinished, processes)
-
 	}
 
 	fmt.Printf("Finished at time %3d\n\n", runTime)
 
 	//TODO: sort alphabetically
-
     // calculate wait and turnaround time
-
     for _, process := range processes {
     	wait := process.selected - process.arrival
 		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, wait, process.burst + wait)
@@ -160,14 +149,15 @@ func checkSelected(time int, numProcFinished int, processes []Process) {
 	}
 }
 
-func checkFinished(time int, numProcFinished int, processes []Process) int {
+func checkFinished(time int, numProcFinished int, processes []Process) bool {
 	if processes[numProcFinished].selected + processes[numProcFinished].burst == time {
 		fmt.Printf("TIME %3d : %3s finished\n", time, processes[numProcFinished].name)
+		processes[numProcFinished].finished = time
 
-		numProcFinished = numProcFinished + 1
+		return true
 	}
 
-	return numProcFinished
+	return false
 }
 
 func checkIdle(time int, runTime int, numProcFinished int, processes []Process) int {
@@ -185,9 +175,105 @@ func checkIdle(time int, runTime int, numProcFinished int, processes []Process) 
 }
 
 func sjf(runTime int, processes []Process) {
-	fmt.Println("sjf")
+	fmt.Printf("%3d processes\nUsing preemptive Shortest Job First\n", len(processes))
+
+	// bubble sort by shortest job
+	for i := 0 ; i < len(processes) ; i++ {
+		for j := 0 ; j < len(processes) - i - 1 ; j++ {
+			if processes[j].burst > processes[j+1].burst {
+				processes[j], processes[j+1] = processes[j+1], processes[j]
+			}
+		}
+	}
+
+	numProcFinished := 0
+	mostRecent := -1
+	for time := 0 ; time < runTime ; time++ {
+		checkArrival(time, numProcFinished, processes)
+		
+		if mostRecent != -1 {
+			numProcFinished = checkFinishedSJF(time, numProcFinished, mostRecent, processes)
+		
+		}
+		
+		if numProcFinished != len(processes) {
+			mostRecent = checkSelectedSJF(runTime, time, processes, mostRecent)
+		}
+
+		time = checkIdle(time, runTime, numProcFinished, processes)
+	}
+
+
+
+	fmt.Printf("Finished at time %3d\n\n", runTime)
+
+	//TODO: sort alphabetically
+    // calculate wait and turnaround time
+    for _, process := range processes {
+		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, process.selected - process.arrival, process.finished - process.arrival)
+		//fmt.Println(process)
+	}
+
+}
+
+func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int) int{
+	for i := 0 ; i < len(processes) ; i++ {
+
+		// check if process has arrived
+		if processes[i].arrival <= time {
+
+			// check if process still needs to be run
+			if processes[i].timeBursted < processes[i].burst {
+
+				// grab inital selection time
+				if !processes[i].previouslySelected {
+					processes[i].previouslySelected = true
+					processes[i].selected = time
+				}
+
+				// only print it's been selected the first of each mini-burst
+				if mostRecent != i {
+					mostRecent = i
+
+					// TODO: calculate burst: go through i+1 to end and find next to be executed
+					burst := runTime + 1
+
+					for j := 0 ; j < i ; j++ {
+						if processes[j].timeBursted < processes[j].burst {
+							if processes[j].arrival < processes[i].burst - processes[i].timeBursted + time {
+								if processes[j].arrival < burst {
+									burst = processes[j].arrival
+								}
+							}
+						}
+					}
+
+					if burst == runTime + 1 {
+						burst = processes[mostRecent].burst - processes[mostRecent].timeBursted
+					}
+
+					fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[mostRecent].name, burst)
+				}
+				
+				processes[i].timeBursted++
+				return mostRecent
+			}				
+		}
+	}
+	return -1
+}
+
+
+func checkFinishedSJF(time int, numProcFinished int, mostRecent int, processes []Process) int{
+	if processes[mostRecent].timeBursted == processes[mostRecent].burst {
+		fmt.Printf("TIME %3d : %3s finished\n", time, processes[mostRecent].name)
+		processes[mostRecent].finished = time
+		numProcFinished++
+	}
+
+	return numProcFinished
 }
 
 func rr(runTime int, quantum int, processes []Process) {
-	fmt.Println("rr")
+	fmt.Printf("%3d processes\nUsing Round Robin\n Quantum %3d\n", len(processes), quantum)
 }
