@@ -141,17 +141,19 @@ func checkSelectedFCFS(time int, numProcFinished int, processes []Process) {
 func sjf(runTime int, processes []Process) {
 	fmt.Printf("%3d processes\nUsing preemptive Shortest Job First\n", len(processes))
 
-	// bubble sort by shortest job
+	numProcFinished := 0
+	mostRecent := -1
+
+		// bubble sort by arrival time
 	for i := 0 ; i < len(processes) ; i++ {
 		for j := 0 ; j < len(processes) - i - 1 ; j++ {
-			if processes[j].burst > processes[j+1].burst {
+			if processes[j].arrival > processes[j+1].arrival {
 				processes[j], processes[j+1] = processes[j+1], processes[j]
 			}
 		}
 	}
 
-	numProcFinished := 0
-	mostRecent := -1
+
 	for time := 0 ; time < runTime ; time++ {
 		checkArrival(time, numProcFinished, processes)
 		
@@ -171,56 +173,82 @@ func sjf(runTime int, processes []Process) {
 
 // returns process index if running, -1 if idle
 func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int) int{
-	for i := 0 ; i < len(processes) ; i++ {
+	i := shortestProcess(runTime, time, processes)
 
+	if i == runTime + 1 {
+		fmt.Printf("TIME %3d : Idle\n", time)
+		return -1
+	}
+
+	// grab inital selection time
+	if !processes[i].previouslySelected {
+		processes[i].previouslySelected = true
+		processes[i].selected = time
+	}
+
+
+	// only print it's been selected the first of each mini-burst
+	if mostRecent != i {
+		burst := getBurst(processes[i].burst - processes[i].timeBursted, processes, time, i)
+		fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[i].name, burst)
+	}
+	
+	processes[i].timeBursted++
+	return i
+}
+
+func getBurst(burst int, processes []Process, time int, i int) int{
+	// if a shorter job will arrive before the current process is done, burst time is reduced
+
+	for j := 0 ; j < len(processes) ; j++ {
+		if j == i {
+			continue
+		}
+
+		// another process still needs to run
+		if processes[j].timeBursted < processes[j].burst {
+
+			// process arrives before current job is finished
+			if processes[j].arrival < processes[i].burst - processes[i].timeBursted + time {
+
+				// process has a shorter burst time than current process's burst time at its arrival
+				if processes[j].burst - processes[j].timeBursted < processes[i].burst - processes[i].timeBursted - (processes[j].arrival - time) {
+
+					// also shorter burst than any other process meeting prior critera
+					if processes[j].burst - processes[j].timeBursted < burst {
+						return processes[j].arrival - time
+					}
+				}
+			}
+		}
+	}
+
+	return burst
+}
+
+
+func shortestProcess(runTime int, time int, processes []Process) int {
+	shortestProcessIndex := -1
+	shortestProcess := runTime + 1
+
+	for i := 0 ; i < len(processes) ; i++ {
+		
 		// check if process has arrived
 		if processes[i].arrival <= time {
 
 			// check if process still needs to be run
 			if processes[i].timeBursted < processes[i].burst {
-
-				// grab inital selection time
-				if !processes[i].previouslySelected {
-					processes[i].previouslySelected = true
-					processes[i].selected = time
+				if processes[i].burst - processes[i].timeBursted < shortestProcess {
+					shortestProcessIndex = i
+					shortestProcess = processes[i].burst - processes[i].timeBursted
 				}
-
-				// only print it's been selected the first of each mini-burst
-				if mostRecent != i {
-					mostRecent = i
-
-					burst := runTime + 1
-
-					// if a shorter job will arrive before the current process is done, burst time is reduced
-					for j := 0 ; j < i ; j++ {
-						if processes[j].timeBursted < processes[j].burst {
-							if processes[j].arrival < processes[i].burst - processes[i].timeBursted + time {
-								if processes[j].arrival - time < burst {
-									burst = processes[j].arrival - time
-								}
-							}
-						}
-					}
-
-					// current burst will not be interruped and process will finish
-					if burst == runTime + 1 {
-						burst = processes[mostRecent].burst - processes[mostRecent].timeBursted
-					}
-
-					fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[mostRecent].name, burst)
-				}
-				
-				processes[i].timeBursted++
-				return mostRecent
-			}				
+			}
 		}
 	}
 
-	// idle
-	fmt.Printf("TIME %3d : Idle\n", time)
-
-	return -1
+	return shortestProcessIndex
 }
+
 
 func rr(runTime int, quantum int, processes []Process) {
 	fmt.Printf("%3d processes\nUsing Round Robin\n Quantum %3d\n", len(processes), quantum)
