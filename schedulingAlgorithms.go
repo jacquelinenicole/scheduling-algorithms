@@ -14,6 +14,8 @@ type Process struct {
 	selected int
 	finished int
 	previouslySelected bool
+	lastStopped int
+	wait int
 }
 
 func main() {
@@ -70,7 +72,7 @@ func parse(fileName string) (int, string, int, []Process) {
     	arrival, _ := strconv.Atoi(getValue(s, "arrival"))
     	burst, _ := strconv.Atoi(getValue(s, "burst"))
 
-    	processes = append(processes, Process{name, arrival, burst, 0, 0, 0, false})
+    	processes = append(processes, Process{name, arrival, burst, 0, 0, 0, false, 0, 0})
     }
 
 	return runTime, algorithm, quantum, processes
@@ -129,6 +131,7 @@ func fcfs(runTime int, processes []Process) {
 func checkSelectedFCFS(time int, numProcFinished int, processes []Process) {
 	if processes[numProcFinished].selected == time {
 		fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[numProcFinished].name, processes[numProcFinished].burst)
+		processes[numProcFinished].wait = processes[numProcFinished].selected - processes[numProcFinished].arrival
 	}
 
 	if processes[numProcFinished].selected <= time {
@@ -144,7 +147,7 @@ func sjf(runTime int, processes []Process) {
 	numProcFinished := 0
 	mostRecent := -1
 
-		// bubble sort by arrival time
+	// bubble sort by arrival time
 	for i := 0 ; i < len(processes) ; i++ {
 		for j := 0 ; j < len(processes) - i - 1 ; j++ {
 			if processes[j].arrival > processes[j+1].arrival {
@@ -184,15 +187,21 @@ func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int
 	if !processes[i].previouslySelected {
 		processes[i].previouslySelected = true
 		processes[i].selected = time
+		processes[i].wait = processes[i].selected - processes[i].arrival
 	}
 
 
 	// only print it's been selected the first of each mini-burst
 	if mostRecent != i {
 		burst := getBurst(processes[i].burst - processes[i].timeBursted, processes, time, i)
+
+		if processes[i].timeBursted != 0 {
+			processes[i].wait += time - processes[i].lastStopped
+		}
+
 		fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[i].name, burst)
 	}
-	
+	processes[i].lastStopped = time + 1
 	processes[i].timeBursted++
 	return i
 }
@@ -288,6 +297,6 @@ func printTimes(runTime int, processes []Process) {
 
 	//TODO: sort alphabetically by process name
     for _, process := range processes {
-		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, process.selected - process.arrival, process.finished - process.arrival)
+		fmt.Printf("%s wait %3d turnaround %3d\n", process.name, process.wait, process.finished - process.arrival)
 	}
 }
