@@ -23,7 +23,7 @@ func main() {
     }
 
     fileName := os.Args[1]
-    runTime, algorithm, quantum, processes := getInfo(fileName)
+    runTime, algorithm, quantum, processes := parse(fileName)
 
     if (algorithm == "fcfs") {
     	fcfs(runTime, processes)
@@ -44,7 +44,7 @@ func check(e error) {
 }
 
 // gets all needed data from file; initializes processes array of struct Process
-func getInfo(fileName string) (int, string, int, []Process) {
+func parse(fileName string) (int, string, int, []Process) {
     file, err := os.Open(fileName)
     check(err)
 
@@ -118,7 +118,6 @@ func fcfs(runTime int, processes []Process) {
 			time = finishIdle(time, runTime, numProcFinished, processes)
 		} else {
 			checkSelectedFCFS(time, numProcFinished, processes)
-			checkIdleFCFS(time, runTime, numProcFinished, processes)
 		}
 
 		
@@ -134,15 +133,9 @@ func checkSelectedFCFS(time int, numProcFinished int, processes []Process) {
 
 	if processes[numProcFinished].selected <= time {
 		processes[numProcFinished].timeBursted++
-	}
-}
-
-func checkIdleFCFS(time int, runTime int, numProcFinished int, processes []Process) int {
-	if processes[numProcFinished].arrival > time {
+	} else {
 		fmt.Printf("TIME %3d : Idle\n", time)
 	}
-
-	return time
 }
 
 func sjf(runTime int, processes []Process) {
@@ -166,19 +159,17 @@ func sjf(runTime int, processes []Process) {
 			numProcFinished = checkFinished(time, mostRecent, numProcFinished, processes)
 		}
 		
-
-
 		if numProcFinished == len(processes) {
 			time = finishIdle(time, runTime, numProcFinished, processes)
 		}	else {
 			mostRecent = checkSelectedSJF(runTime, time, processes, mostRecent)
-			checkIdleSJF(time, runTime, numProcFinished, processes)
 		}
 	}
 
 	printTimes(runTime, processes)
 }
 
+// returns process index if running, -1 if idle
 func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int) int{
 	for i := 0 ; i < len(processes) ; i++ {
 
@@ -204,7 +195,7 @@ func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int
 					for j := 0 ; j < i ; j++ {
 						if processes[j].timeBursted < processes[j].burst {
 							if processes[j].arrival < processes[i].burst - processes[i].timeBursted + time {
-								if processes[j].arrival < burst {
+								if processes[j].arrival - time < burst {
 									burst = processes[j].arrival - time
 								}
 							}
@@ -224,27 +215,12 @@ func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int
 			}				
 		}
 	}
+
+	// idle
+	fmt.Printf("TIME %3d : Idle\n", time)
+
 	return -1
 }
-
-func checkIdleSJF(time int, runTime int, numProcFinished int, processes []Process) {
-	idle := true
-
-	// idle if no process can/needs to be run
-	for i := 0 ; i < len(processes) ; i++ {
-		if processes[i].arrival <= time {
-			if processes[i].timeBursted <= processes[i].burst {
-				idle = false
-				break
-			}
-		}
-	}
-
-	if idle {
-		fmt.Printf("TIME %3d : Idle\n", time)
-	}
-}
-
 
 func rr(runTime int, quantum int, processes []Process) {
 	fmt.Printf("%3d processes\nUsing Round Robin\n Quantum %3d\n", len(processes), quantum)
