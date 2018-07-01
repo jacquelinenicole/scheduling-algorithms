@@ -16,7 +16,7 @@ type Process struct {
 }
 
 func main() {
-    if len(os.Args) != 2 {
+    if len(os.Args) > 3 { {
     	fmt.Println("Invalid argument list. Correct usage: \ngo run schedulingAlgorithms.go [file name]")
     	os.Exit(-1)
     }
@@ -120,6 +120,15 @@ func fcfs(runTime int, processes []Process) {
 		}
 	}
 
+	// bubble sort alphabetically
+	for i := 0 ; i < len(processes) ; i++ {
+		for j := 0 ; j < len(processes) - i - 1 ; j++ {
+			if processes[j].name > processes[j+1].name {
+				processes[j], processes[j+1] = processes[j+1], processes[j]
+			}
+		}
+	}
+
 	printTimes(runTime, processes)
 }
 
@@ -138,9 +147,6 @@ func checkSelectedFCFS(time int, numProcFinished int, processes []Process) {
 func sjf(runTime int, processes []Process) {
 	fmt.Printf("%3d processes\nUsing preemptive Shortest Job First\n", len(processes))
 
-	numProcFinished := 0
-	mostRecent := -1
-
 	// bubble sort by arrival time
 	for i := 0 ; i < len(processes) ; i++ {
 		for j := 0 ; j < len(processes) - i - 1 ; j++ {
@@ -150,6 +156,8 @@ func sjf(runTime int, processes []Process) {
 		}
 	}
 
+	numProcFinished := 0
+	mostRecent := -1
 	for time := 0 ; time < runTime ; time++ {
 		checkArrival(time, processes)
 		
@@ -160,6 +168,15 @@ func sjf(runTime int, processes []Process) {
 			time = finishIdle(time, runTime, numProcFinished, processes)
 		}	else {
 			mostRecent = checkSelectedSJF(runTime, time, processes, mostRecent)
+		}
+	}
+
+	// bubble sort alphabetically
+	for i := 0 ; i < len(processes) ; i++ {
+		for j := 0 ; j < len(processes) - i - 1 ; j++ {
+			if processes[j].name > processes[j+1].name {
+				processes[j], processes[j+1] = processes[j+1], processes[j]
+			}
 		}
 	}
 
@@ -218,7 +235,6 @@ func calcBurst(burst int, processes []Process, time int, i int) int{
 	return burst
 }
 
-
 func shortestProcess(runTime int, time int, processes []Process) int {
 	shortestProcessIndex := -1
 	shortestProcess := runTime + 1
@@ -240,7 +256,6 @@ func shortestProcess(runTime int, time int, processes []Process) int {
 
 	return shortestProcessIndex
 }
-
 
 func rr(runTime int, quantum int, processes []Process) {
 	fmt.Printf("%3d processes\nUsing Round Robin\nQuantum %3d\n", len(processes), quantum)
@@ -266,8 +281,6 @@ func rr(runTime int, quantum int, processes []Process) {
 
 // returns process index if running, -1 if idle
 func checkSelectedRR(runTime int, time int, processes []Process, mostRecent int, quantum int, queue []int) (int, []int) {
-	
-
 	// process still needs to run
 	if mostRecent != -1 && processes[mostRecent].timeBursted < processes[mostRecent].burst {
 		
@@ -313,7 +326,6 @@ func checkArrivalRR(time int, processes []Process, queue []int) []int{
 			fmt.Printf("TIME %3d : %3s arrived \n", time, processes[i].name)
 		}
 	}
-	fmt.Println("Arrival: ", queue)
 
 	return queue
 }
@@ -338,7 +350,7 @@ func checkArrival(time int, processes []Process) {
 
 func finishIdle(time int, runTime int, numProcFinished int, processes []Process) int {	
 	for time < runTime {
-		fmt.Printf("TIME %3d : Idle\n", time)
+		
 		time++
 	}
 
