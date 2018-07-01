@@ -118,8 +118,6 @@ func fcfs(runTime int, processes []Process) {
 		} else {
 			checkSelectedFCFS(time, numProcFinished, processes)
 		}
-
-		
 	}
 
 	printTimes(runTime, processes)
@@ -155,9 +153,8 @@ func sjf(runTime int, processes []Process) {
 	for time := 0 ; time < runTime ; time++ {
 		checkArrival(time, processes)
 		
-		if mostRecent != -1 {
-			numProcFinished = checkFinished(time, mostRecent, numProcFinished, processes)
-		}
+		numProcFinished = checkFinished(time, mostRecent, numProcFinished, processes)
+		
 		
 		if numProcFinished == len(processes) {
 			time = finishIdle(time, runTime, numProcFinished, processes)
@@ -183,20 +180,18 @@ func checkSelectedSJF(runTime int, time int, processes []Process, mostRecent int
 		processes[i].selected = time
 	}
 
-
 	// only print it's been selected the first of each mini-burst
 	if mostRecent != i {
-		burst := calcBurst(processes[i].burst - processes[i].timeBursted, processes, time, i)
+		// burst := calcBurst(processes[i].burst - processes[i].timeBursted, processes, time, i)
 		
-		fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[i].name, burst)
+		fmt.Printf("TIME %3d : %3s selected (burst %3d)\n", time, processes[i].name, processes[i].burst - processes[i].timeBursted)
 	}
 	processes[i].timeBursted++
 	return i
 }
 
+// if a shorter job will arrive before the current process is done, burst time is reduced
 func calcBurst(burst int, processes []Process, time int, i int) int{
-	// if a shorter job will arrive before the current process is done, burst time is reduced
-
 	for j := 0 ; j < len(processes) ; j++ {
 		if j == i {
 			continue
@@ -256,14 +251,13 @@ func rr(runTime int, quantum int, processes []Process) {
 
 	for time := 0 ; time < runTime ; time++ {
 		queue = checkArrivalRR(time, processes, queue)
-		if mostRecent != -1 {
-			numProcFinished, queue = checkFinishedRR(time, mostRecent, numProcFinished, processes, queue)
-		}
-		
+
+		numProcFinished = checkFinished(time, mostRecent, numProcFinished, processes)
+
 		if numProcFinished == len(processes) {
 			time = finishIdle(time, runTime, numProcFinished, processes)
 		}	else {
-			mostRecent, queue = checkSelectedRR(runTime, time, processes, mostRecent, quantum, queue)
+			mostRecent, queue = checkSelectedRR(runTime, time, processes, mostRecent, quantum, queue)	
 		}
 	}
 
@@ -272,22 +266,23 @@ func rr(runTime int, quantum int, processes []Process) {
 
 // returns process index if running, -1 if idle
 func checkSelectedRR(runTime int, time int, processes []Process, mostRecent int, quantum int, queue []int) (int, []int) {
+	
 
-	// check if last process finished quantum
-	if mostRecent != -1 && processes[mostRecent].timeBursted % quantum != 0 {
-		// process still needs to run
-		if processes[mostRecent].timeBursted < processes[mostRecent].burst {
+	// process still needs to run
+	if mostRecent != -1 && processes[mostRecent].timeBursted < processes[mostRecent].burst {
+		
+		// check if last process finished quantum
+		if processes[mostRecent].timeBursted % quantum != 0 {
 			processes[mostRecent].timeBursted++
 
-			// quantum is completed so add back into queue
-			if processes[mostRecent].timeBursted % quantum == 0 {
-				queue = append(queue, mostRecent)
-			}
-
 			return mostRecent, queue
+		} else if processes[mostRecent].timeBursted < processes[mostRecent].burst {
+			
+			// quantum is completed and still needs to burst so add back into queue
+			queue = append(queue, mostRecent)
 		}
 	}
-	
+
 	// idle
 	if len(queue) == 0 {
 		fmt.Printf("TIME %3d : Idle\n", time)
@@ -296,7 +291,6 @@ func checkSelectedRR(runTime int, time int, processes []Process, mostRecent int,
 
 	// pop off queue
 	i := queue[0]
-
 	if len(queue) == 1 {
 		queue = queue[:0]
 	} else {
@@ -319,18 +313,19 @@ func checkArrivalRR(time int, processes []Process, queue []int) []int{
 			fmt.Printf("TIME %3d : %3s arrived \n", time, processes[i].name)
 		}
 	}
+	fmt.Println("Arrival: ", queue)
 
 	return queue
 }
 
-func checkFinishedRR(time int, curr int, numProcFinished int, processes []Process, queue []int) (int, []int) {
-	if processes[curr].timeBursted == processes[curr].burst {
+func checkFinished(time int, curr int, numProcFinished int, processes []Process) int {
+	if curr != -1 && processes[curr].timeBursted == processes[curr].burst {
 		fmt.Printf("TIME %3d : %3s finished\n", time, processes[curr].name)
 		processes[curr].finished = time
 		numProcFinished++
 	}
 
-	return numProcFinished, queue
+	return numProcFinished
 }
 
 func checkArrival(time int, processes []Process) {
@@ -339,16 +334,6 @@ func checkArrival(time int, processes []Process) {
 			fmt.Printf("TIME %3d : %3s arrived \n", time, processes[i].name)
 		}
 	}
-}
-
-func checkFinished(time int, curr int, numProcFinished int, processes []Process) int {
-	if processes[curr].timeBursted == processes[curr].burst {
-		fmt.Printf("TIME %3d : %3s finished\n", time, processes[curr].name)
-		processes[curr].finished = time
-		numProcFinished++
-	}
-
-	return numProcFinished
 }
 
 func finishIdle(time int, runTime int, numProcFinished int, processes []Process) int {	
